@@ -88,6 +88,13 @@ defmodule Modbux.Rtu.Master do
   end
 
   @doc """
+    Change only timeout : to adpatively wait for variant response size
+  """
+  def change_timeout(pid, timeout) do
+    GenServer.call(pid, {:change_timeout, timeout})
+  end
+
+  @doc """
   Open the Master serial port.
   """
   def open(pid) do
@@ -217,6 +224,14 @@ defmodule Modbux.Rtu.Master do
 
     {:reply, :ok, new_state}
   end
+
+  def handle_call({:change_timeout, timeout}, _from, state) do
+    current_timeout = state.timeout
+
+    new_state = Map.put(state,:timeout, timeout)
+    {:reply, current_timeout, new_state}
+  end
+
 
   # Catch all clause
   def handle_info(msg, state) do
