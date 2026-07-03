@@ -36,6 +36,22 @@ defmodule Modbux.Model do
     writes(state, {slave, :hr, address, values})
   end
 
+  def apply(state, {:si, slave, address, value}) when is_integer(value) do
+    write(state, {slave, :i, address, value})
+  end
+
+  def apply(state, {:si, slave, address, values}) when is_list(values) do
+    writes(state, {slave, :i, address, values})
+  end
+
+  def apply(state, {:sir, slave, address, value}) when is_integer(value) do
+    write(state, {slave, :ir, address, value})
+  end
+
+  def apply(state, {:sir, slave, address, values}) when is_list(values) do
+    writes(state, {slave, :ir, address, values})
+  end
+
   # Error and exception clause
   def apply(state, _cmd) do
     # do nothing
