@@ -244,20 +244,35 @@ defmodule Modbux.Rtu.Master do
   end
 
   defp uart_read(state, cmd) do
+    req_frame = Rtu.pack_req(cmd)
+    port = state.tty |> String.at(-1) |> String.to_integer |> Kernel.+(1)
+    slave_id = elem(cmd, 1)
+
     case UART.read(state.uart_pid, state.timeout) do
       {:ok, ""} ->
-        Logger.warning("(#{__MODULE__}) Timeout")
+        Logger.error("[RTU-TIMEOUT] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)}")
         {:error, :timeout}
 
-      {:ok, {:error, reason, msg}} ->
-        Logger.warning("(#{__MODULE__}) Error in frame: #{inspect(msg)}, reason: #{inspect(reason)}")
-        {:error, reason}
+      {:ok, {:error, reason, bad_frame}} ->
+        case reason do
+          :ecrc ->
+            Logger.error("[RTU-CRC-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}")
+            {:error, :ecrc}
+
+          :einval ->
+            Logger.error("[RTU-INVALID-FC] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}")
+            {:error, :einval}
+
+          _ ->
+            Logger.error("[RTU-FRAME-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}")
+            {:error, reason}
+        end
 
       {:ok, slave_response} ->
         Rtu.parse_res(cmd, slave_response) |> pack_res()
 
       {:error, reason} ->
-        Logger.warning("(#{__MODULE__}) Error: #{inspect(reason)}")
+        Logger.error("[RTU-UART-ERROR] port=#{port} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}")
         {:error, reason}
     end
   end

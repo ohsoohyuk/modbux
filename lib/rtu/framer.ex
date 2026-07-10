@@ -201,6 +201,6 @@ defmodule Modbux.Rtu.Framer do
 
     if real_crc == expected_crc,
       do: state,
-      else: %{state | error: true, error_message: [{:error, :ecrc, "CRC Error"}]}
+      else: %{state | error: true, error_message: [{:error, :ecrc, packet}]}
   end
 end
