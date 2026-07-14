@@ -243,9 +243,21 @@ defmodule Modbux.Rtu.Master do
     uart_read(state, cmd) |> notify(state, cmd)
   end
 
+  @modbus_exceptions %{
+    1 => :illegal_function,
+    2 => :illegal_data_address,
+    3 => :illegal_data_value,
+    4 => :slave_device_failure,
+    5 => :acknowledge,
+    6 => :slave_device_busy,
+    8 => :memory_parity_error,
+    10 => :gateway_path_unavailable,
+    11 => :gateway_target_failed_to_respond
+  }
+
   defp uart_read(state, cmd) do
     req_frame = Rtu.pack_req(cmd)
-    port = state.tty |> String.at(-1) |> String.to_integer |> Kernel.+(1)
+    port = state.tty |> String.at(-1) |> String.to_integer() |> Kernel.+(1)
     slave_id = elem(cmd, 1)
 
     case UART.read(state.uart_pid, state.timeout) do
@@ -268,8 +280,43 @@ defmodule Modbux.Rtu.Master do
             {:error, reason}
         end
 
+      # 정상 slave가 보낸 exception response (fc + 0x80)
+      {:ok, <<resp_id, resp_fc, exception_code, _crc::binary-size(2)>> = slave_response}
+      when resp_fc >= 0x80 ->
+        reason = Map.get(@modbus_exceptions, exception_code, :unknown_exception)
+
+        Logger.error(
+          "[RTU-EXCEPTION] port=#{port} slave_id=#{slave_id} resp_id=#{resp_id} " <>
+            "fc=#{inspect(resp_fc, base: :hex)} exception_code=#{exception_code} reason=#{reason} " <>
+            "req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+          log_type: :rtu
+        )
+
+        {:error, {:modbus_exception, reason}}
+
+      # slave address가 요청과 다른 경우 (stale/밀린 응답)
+      {:ok, <<resp_id, _rest::binary>> = slave_response} when resp_id != slave_id ->
+        Logger.error(
+          "[RTU-MISMATCH] port=#{port} expected_slave=#{slave_id} got_slave=#{resp_id} " <>
+            "req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+          log_type: :rtu
+        )
+
+        {:error, :stale_response}
+
       {:ok, slave_response} ->
-        Rtu.parse_res(cmd, slave_response) |> pack_res()
+        try do
+          Rtu.parse_res(cmd, slave_response) |> pack_res()
+        rescue
+          e ->
+            Logger.error(
+              "[RTU-PARSE-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} " <>
+                "resp=#{inspect(slave_response, base: :hex)} error=#{inspect(e)}",
+              log_type: :rtu
+            )
+
+            {:error, :parse_failed}
+        end
 
       {:error, reason} ->
         Logger.error("[RTU-UART-ERROR] port=#{port} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
