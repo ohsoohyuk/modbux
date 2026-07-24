@@ -190,7 +190,7 @@ defmodule Modbux.Tcp.Client do
            state.timeout
          ) do
       {:ok, socket} ->
-        Logger.info("[TCP-CONNECT] #{inspect(ip)}:#{state.tcp_port} 연결 성공", log_type: :tcp)
+        Logger.info("[TCP-CONNECT] #{ip}:#{state.tcp_port} 연결 성공", log_type: :tcp)
 
         ctrl_pid =
           if state.d_pid == nil do
@@ -204,7 +204,7 @@ defmodule Modbux.Tcp.Client do
         {:reply, :ok, new_state}
 
       {:error, reason} ->
-        Logger.error("[TCP-CONNECT-FAIL] #{inspect(ip)}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
+        Logger.error("[TCP-CONNECT-FAIL] #{ip}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
         # Logger.error("(#{__MODULE__}, :connect) reason #{inspect(reason)}")
         # state
         {:reply, {:error, reason}, state}
@@ -256,13 +256,13 @@ defmodule Modbux.Tcp.Client do
             {:reply, :ok, new_state}
 
           {:error, :closed} ->
-            Logger.error("[TCP-SEND-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
 
             new_state = close_socket(state)
             {:reply, {:error, :closed}, new_state}
 
           {:error, reason} ->
-            Logger.error("[TCP-SEND-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
 
             {:reply, {:error, reason}, state}
         end
@@ -309,7 +309,7 @@ defmodule Modbux.Tcp.Client do
               end
 
             {:error, reason} ->
-              Logger.error("[TCP-RECV-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
+              Logger.error("[TCP-RECV-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
               # Logger.error("(#{__MODULE__}, :confirmation) reason: #{inspect(reason)}")
               # cerrar?
               new_state = close_socket(state)
@@ -357,7 +357,7 @@ defmodule Modbux.Tcp.Client do
   def handle_info({:tcp_closed, _port}, state) do
     ip = :inet.ntoa(state.ip) |> to_string()
 
-    Logger.warning("[TCP-SERVER-CLOSE] #{inspect(ip)}:#{state.tcp_port} client socket close", log_type: :tcp)
+    Logger.warning("[TCP-SERVER-CLOSE] #{ip}:#{state.tcp_port} client socket close", log_type: :tcp)
     # Logger.info("(#{__MODULE__}, :tcp_close) Server close the port")
     new_state = close_socket(state)
     {:noreply, new_state}
