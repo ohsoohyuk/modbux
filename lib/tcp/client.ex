@@ -148,6 +148,16 @@ defmodule Modbux.Tcp.Client do
     {:ok, state}
   end
 
+  def terminate(reason, state) do
+    ip = :inet.ntoa(state.ip) |> to_string()
+    Logger.warning("[TCP-DISCONNECT] #{ip}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
+
+    if state.socket != nil do
+      :gen_tcp.close(state.socket)
+    end
+    :ok
+  end
+
   def handle_call(:state, from, state) do
     Logger.debug("(#{__MODULE__}, :state) from: #{inspect(from)}")
     {:reply, state, state}
