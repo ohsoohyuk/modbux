@@ -181,6 +181,8 @@ defmodule Modbux.Tcp.Client do
     Logger.debug("(#{__MODULE__}, :connect) state: #{inspect(state)}")
     Logger.debug("(#{__MODULE__}, :connect) from: #{inspect(from)}")
 
+    ip = :inet.ntoa(state.ip) |> to_string()
+
     case :gen_tcp.connect(
            state.ip,
            state.tcp_port,
@@ -188,7 +190,7 @@ defmodule Modbux.Tcp.Client do
            state.timeout
          ) do
       {:ok, socket} ->
-        Logger.info("[TCP-CONNECT] #{inspect(state.ip)}:#{state.tcp_port} 연결 성공", log_type: :tcp)
+        Logger.info("[TCP-CONNECT] #{inspect(ip)}:#{state.tcp_port} 연결 성공", log_type: :tcp)
 
         ctrl_pid =
           if state.d_pid == nil do
@@ -202,7 +204,7 @@ defmodule Modbux.Tcp.Client do
         {:reply, :ok, new_state}
 
       {:error, reason} ->
-        Logger.error("[TCP-CONNECT-FAIL] #{inspect(state.ip)}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
+        Logger.error("[TCP-CONNECT-FAIL] #{inspect(ip)}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
         # Logger.error("(#{__MODULE__}, :connect) reason #{inspect(reason)}")
         # state
         {:reply, {:error, reason}, state}
@@ -225,6 +227,8 @@ defmodule Modbux.Tcp.Client do
   # 요청 송신
   def handle_call({:request, cmd}, _from, state) do
     Logger.debug("(#{__MODULE__}, :request) state: #{inspect(state)}")
+
+    ip = :inet.ntoa(state.ip) |> to_string()
 
     case state.status do
       :connected ->
@@ -252,13 +256,13 @@ defmodule Modbux.Tcp.Client do
             {:reply, :ok, new_state}
 
           {:error, :closed} ->
-            Logger.error("[TCP-SEND-FAIL] #{inspect(state.ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
 
             new_state = close_socket(state)
             {:reply, {:error, :closed}, new_state}
 
           {:error, reason} ->
-            Logger.error("[TCP-SEND-FAIL] #{inspect(state.ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
 
             {:reply, {:error, reason}, state}
         end
@@ -272,6 +276,8 @@ defmodule Modbux.Tcp.Client do
   # 응답 수신
   def handle_call(:confirmation, _from, state) do
     Logger.debug("(#{__MODULE__}, :confirmation) state: #{inspect(state)}")
+
+    ip = :inet.ntoa(state.ip) |> to_string()
 
     if state.active do
       {:reply, :error, state}
@@ -303,7 +309,7 @@ defmodule Modbux.Tcp.Client do
               end
 
             {:error, reason} ->
-              Logger.error("[TCP-RECV-FAIL] #{inspect(state.ip)}:#{state.tcp_port} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
+              Logger.error("[TCP-RECV-FAIL] #{inspect(ip)}:#{state.tcp_port} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
               # Logger.error("(#{__MODULE__}, :confirmation) reason: #{inspect(reason)}")
               # cerrar?
               new_state = close_socket(state)
@@ -349,7 +355,9 @@ defmodule Modbux.Tcp.Client do
 
   # 서버가 연결 끊었을 때
   def handle_info({:tcp_closed, _port}, state) do
-    Logger.warning("[TCP-SERVER-CLOSE] #{inspect(state.ip)}:#{state.tcp_port} client socket close", log_type: :tcp)
+    ip = :inet.ntoa(state.ip) |> to_string()
+
+    Logger.warning("[TCP-SERVER-CLOSE] #{inspect(ip)}:#{state.tcp_port} client socket close", log_type: :tcp)
     # Logger.info("(#{__MODULE__}, :tcp_close) Server close the port")
     new_state = close_socket(state)
     {:noreply, new_state}
