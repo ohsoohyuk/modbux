@@ -150,9 +150,10 @@ defmodule Modbux.Tcp.Client do
 
   def terminate(reason, state) do
     ip = :inet.ntoa(state.ip) |> to_string()
-    Logger.warning("[TCP-DISCONNECT] #{ip}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
+    Logger.warning("modbus tcp terminate 실행")
 
     if state.socket != nil do
+      Logger.warning("[TCP-DISCONNECT] #{ip}:#{state.tcp_port} reason=#{inspect(reason)}", log_type: :tcp)
       :gen_tcp.close(state.socket)
     end
     :ok
