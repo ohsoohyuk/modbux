@@ -67,7 +67,8 @@ defmodule Modbux.Model do
 
         list =
           for point <- address..(address + count - 1) do
-            Map.fetch!(map, {type, point})
+            # Map.fetch!(map, {type, point})
+            Map.get(map, {type, point}, 0)   # <- 없으면 0 반환, 예외 없음
           end
 
         {{:ok, list}, state}
