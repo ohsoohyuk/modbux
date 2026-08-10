@@ -15,6 +15,7 @@ defmodule Modbux.Rtu.Master do
   defstruct tty: nil,
             timeout: nil,
             cmd: nil,
+            log_addr: nil,
             active: false,
             uart_opts: nil,
             uart_pid: nil,
@@ -182,6 +183,12 @@ defmodule Modbux.Rtu.Master do
     {:reply, :ok, state}
   end
 
+  # 로그에 사용자 주소(설정된 RTU address)를 함께 남기기 위해 log_addr 를 받는 요청.
+  # 통신에는 쓰이지 않고 로그 표시용으로만 state 에 보관한다.
+  def handle_call({:request, cmd, log_addr}, from, state) do
+    handle_call({:request, cmd}, from, %{state | log_addr: log_addr})
+  end
+
   def handle_call({:request, cmd}, _from, state) do
     uart_frame = Rtu.pack_req(cmd)
     Logger.debug("(#{__MODULE__}) Frame: #{inspect(uart_frame, base: :hex)}")
@@ -259,24 +266,26 @@ defmodule Modbux.Rtu.Master do
     req_frame = Rtu.pack_req(cmd)
     port = state.tty |> String.at(-1) |> String.to_integer() |> Kernel.+(1)
     slave_id = elem(cmd, 1)
+    # 로그 표시용 사용자 시작 주소(설정된 RTU address). 통신에는 쓰이지 않음.
+    rtu_start = state.log_addr
 
     case UART.read(state.uart_pid, state.timeout) do
       {:ok, ""} ->
-        Logger.error("[RTU-TIMEOUT] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)}", log_type: :rtu)
+        Logger.error("[RTU-TIMEOUT] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)}", log_type: :rtu)
         {:error, :timeout}
 
       {:ok, {:error, reason, bad_frame}} ->
         case reason do
           :ecrc ->
-            Logger.error("[RTU-CRC-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-CRC-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, :ecrc}
 
           :einval ->
-            Logger.error("[RTU-INVALID-FC] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-INVALID-FC] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, :einval}
 
           _ ->
-            Logger.error("[RTU-FRAME-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-FRAME-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, reason}
         end
 
@@ -288,7 +297,7 @@ defmodule Modbux.Rtu.Master do
         Logger.error(
           "[RTU-EXCEPTION] port=#{port} slave_id=#{slave_id} resp_id=#{resp_id} " <>
             "fc=#{inspect(resp_fc, base: :hex)} exception_code=#{exception_code} reason=#{reason} " <>
-            "req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+            "rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
           log_type: :rtu
         )
 
@@ -298,7 +307,7 @@ defmodule Modbux.Rtu.Master do
       {:ok, <<resp_id, _rest::binary>> = slave_response} when resp_id != slave_id ->
         Logger.error(
           "[RTU-MISMATCH] port=#{port} expected_slave=#{slave_id} got_slave=#{resp_id} " <>
-            "req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+            "rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
           log_type: :rtu
         )
 
@@ -310,7 +319,7 @@ defmodule Modbux.Rtu.Master do
         rescue
           e ->
             Logger.error(
-              "[RTU-PARSE-ERROR] port=#{port} slave_id=#{slave_id} req=#{inspect(req_frame, base: :hex)} " <>
+              "[RTU-PARSE-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} " <>
                 "resp=#{inspect(slave_response, base: :hex)} error=#{inspect(e)}",
               log_type: :rtu
             )
@@ -319,7 +328,7 @@ defmodule Modbux.Rtu.Master do
         end
 
       {:error, reason} ->
-        Logger.error("[RTU-UART-ERROR] port=#{port} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+        Logger.error("[RTU-UART-ERROR] port=#{port} cmd=#{inspect(cmd)} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
         {:error, reason}
     end
   end

@@ -23,7 +23,8 @@ defmodule Modbux.Tcp.Client do
             d_pid: nil,
             msg_len: 0,
             pending_msg: %{},
-            cmd: nil
+            cmd: nil,
+            log_addr: nil
 
   @type client_option ::
           {:ip, {byte(), byte(), byte(), byte()}}
@@ -235,6 +236,12 @@ defmodule Modbux.Tcp.Client do
     end
   end
 
+  # 로그에 사용자 주소(설정된 slave 측 tcp address)를 함께 남기기 위해 log_addr 를 받는 요청.
+  # 통신에는 쓰이지 않고 로그 표시용으로만 state 에 보관한다.
+  def handle_call({:request, cmd, log_addr}, from, state) do
+    handle_call({:request, cmd}, from, %{state | log_addr: log_addr})
+  end
+
   # 요청 송신
   def handle_call({:request, cmd}, _from, state) do
     Logger.debug("(#{__MODULE__}, :request) state: #{inspect(state)}")
@@ -267,13 +274,13 @@ defmodule Modbux.Tcp.Client do
             {:reply, :ok, new_state}
 
           {:error, :closed} ->
-            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} tcp_addr=#{state.log_addr} cmd=#{inspect(cmd)} client socket close", log_type: :tcp)
 
             new_state = close_socket(state)
             {:reply, {:error, :closed}, new_state}
 
           {:error, reason} ->
-            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
+            Logger.error("[TCP-SEND-FAIL] #{ip}:#{state.tcp_port} tcp_addr=#{state.log_addr} cmd=#{inspect(cmd)} reason=#{inspect(reason)}", log_type: :tcp)
 
             {:reply, {:error, reason}, state}
         end
@@ -320,7 +327,7 @@ defmodule Modbux.Tcp.Client do
               end
 
             {:error, reason} ->
-              Logger.error("[TCP-RECV-FAIL] #{ip}:#{state.tcp_port} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
+              Logger.error("[TCP-RECV-FAIL] #{ip}:#{state.tcp_port} tcp_addr=#{state.log_addr} cmd=#{inspect(state.cmd)} reason=#{inspect(reason)} client socket close", log_type: :tcp)
               # Logger.error("(#{__MODULE__}, :confirmation) reason: #{inspect(reason)}")
               # cerrar?
               new_state = close_socket(state)
