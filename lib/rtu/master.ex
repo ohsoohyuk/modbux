@@ -271,21 +271,21 @@ defmodule Modbux.Rtu.Master do
 
     case UART.read(state.uart_pid, state.timeout) do
       {:ok, ""} ->
-        Logger.error("[RTU-TIMEOUT] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)}", log_type: :rtu)
+        Logger.error("[RTU-TIMEOUT] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)}", log_type: :rtu)
         {:error, :timeout}
 
       {:ok, {:error, reason, bad_frame}} ->
         case reason do
           :ecrc ->
-            Logger.error("[RTU-CRC-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-CRC-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, :ecrc}
 
           :einval ->
-            Logger.error("[RTU-INVALID-FC] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-INVALID-FC] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, :einval}
 
           _ ->
-            Logger.error("[RTU-FRAME-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+            Logger.error("[RTU-FRAME-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(bad_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
             {:error, reason}
         end
 
@@ -297,7 +297,7 @@ defmodule Modbux.Rtu.Master do
         Logger.error(
           "[RTU-EXCEPTION] port=#{port} slave_id=#{slave_id} resp_id=#{resp_id} " <>
             "fc=#{inspect(resp_fc, base: :hex)} exception_code=#{exception_code} reason=#{reason} " <>
-            "rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+            "rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
           log_type: :rtu
         )
 
@@ -307,7 +307,7 @@ defmodule Modbux.Rtu.Master do
       {:ok, <<resp_id, _rest::binary>> = slave_response} when resp_id != slave_id ->
         Logger.error(
           "[RTU-MISMATCH] port=#{port} expected_slave=#{slave_id} got_slave=#{resp_id} " <>
-            "rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
+            "rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} resp=#{inspect(slave_response, base: :hex)}",
           log_type: :rtu
         )
 
@@ -319,7 +319,7 @@ defmodule Modbux.Rtu.Master do
         rescue
           e ->
             Logger.error(
-              "[RTU-PARSE-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} " <>
+              "[RTU-PARSE-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} " <>
                 "resp=#{inspect(slave_response, base: :hex)} error=#{inspect(e)}",
               log_type: :rtu
             )
@@ -328,7 +328,7 @@ defmodule Modbux.Rtu.Master do
         end
 
       {:error, reason} ->
-        Logger.error("[RTU-UART-ERROR] port=#{port} cmd=#{inspect(cmd)} rtu_start=#{rtu_start} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
+        Logger.error("[RTU-UART-ERROR] port=#{port} slave_id=#{slave_id} rtu_start=#{rtu_start} cmd=#{inspect(cmd)} req=#{inspect(req_frame, base: :hex)} reason=#{inspect(reason)}", log_type: :rtu)
         {:error, reason}
     end
   end
