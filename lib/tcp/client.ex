@@ -228,7 +228,8 @@ defmodule Modbux.Tcp.Client do
 
     if state.socket != nil do
       new_state = close_socket(state)
-      Logger.info("[TCP-CLOSE] #{state.ip}:#{state.tcp_port} 연결 종료(요청)", log_type: :tcp)
+      ip = :inet.ntoa(state.ip) |> to_string()
+      Logger.info("[TCP-CLOSE] #{ip}:#{state.tcp_port} 연결 종료(요청)", log_type: :tcp)
       {:reply, :ok, new_state}
     else
       Logger.error("(#{__MODULE__}, :close) No port to close")
